@@ -1,0 +1,169 @@
+# importing the required library
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+## problem statement
+
+## Meta has IMDB-id + Movie title + 'Year of Release'
+## Rating has IMDB-id + Rating.
+
+##Across the year which top-5  movie title that got the highest rating (Need to merge 'meta' + 'rating')
+##Plot for top-10 movie title with rating across the years. (Need to merge 'meta' + 'rating')
+##Top-5 movie highest rating movie across years. (Need to merge 'meta' + 'rating')
+##Year wise total votes.(Need to merge 'meta' + 'rating')
+
+## Importing data
+
+pd.options.display.max_rows = 20
+
+meta = pd.read_csv("bollywood_meta_2010-2019.csv")
+ratings = pd.read_csv("bollywood_ratings_2010-2019.csv")
+
+meta
+
+ratings
+
+meta.info()
+
+ratings.info()
+
+## Data Preparation
+
+# checking for missing data and duplicate data
+#showing isnull = 0 and duplicated = 3
+print(meta.isnull().sum(),meta.duplicated().sum(),sep = '\n\n')
+
+# now checking for missing data and duplicate data for ratings
+# isnull data = 13,13(ratings,votes) and duplicated = 3
+print(ratings.isnull().sum(),ratings.duplicated().sum(),sep = '\n\n')
+
+# now checking for duplicated data
+
+meta[meta.duplicated('imdb_id')==True]
+
+# now checking each data how many time it is being duplicated
+meta[meta['imdb_id'] =='tt1954470']
+
+meta[meta['imdb_id'] =='tt2140465']
+
+meta[meta['imdb_id'] =='tt2424988']
+
+# now checking same for the rating data set
+
+ratings[ratings.duplicated('imdb_id')==True]
+
+# now checking how many time that data is beging get repeated
+
+
+ratings[ratings['imdb_id']=='tt2424988']
+
+ratings[ratings['imdb_id']=='tt2140465']
+
+ratings[ratings['imdb_id']=='tt1954470']
+
+### Drop the duplicated for meta and ratings
+
+meta = meta.drop_duplicates()
+ratings = ratings.drop_duplicates()
+
+print(meta.duplicated().any(),ratings.duplicated().any(),sep = '\n\n')
+
+### Now checking for missing data
+
+print(meta.isnull().sum(),ratings.isnull().sum(),sep = '\n\n')
+
+ratings[ratings['imdb_rating'].isnull()]
+
+# delete these row beacause they are not usefull
+
+ratings = ratings.dropna()
+ratings
+
+ratings.isnull().any()
+
+## Merge
+
+### Now data set is free from NAN and duplicate value now ready to merge
+
+meta_ratings = pd.merge(meta,ratings,how = 'inner',left_on = 'imdb_id',right_on = 'imdb_id')
+meta_ratings
+
+meta_ratings.info()
+
+print(meta_ratings.isnull().any(),meta_ratings.duplicated().any(),sep = '\n\n')
+
+meta_ratings.describe()
+
+meta_ratings.describe(include='object')
+
+# checking unique value
+
+meta_ratings['year_of_release'].unique()
+
+meta_ratings[meta_ratings['year_of_release'] =='\\N']
+
+# delete that row
+
+meta_ratings = meta_ratings.drop(index=118)
+
+# again checking wheather that row deleted or not 
+
+meta_ratings[meta_ratings['year_of_release'] =='\\N']
+
+### Now let's check some other statistics
+
+## Most of the votes are in the range 868,
+## There are only 37 movies in the range 28-57K
+## 3 movies got votes more than 100
+xvotes = pd.cut(meta_ratings["imdb_votes"], 5)
+meta_ratings.hist("imdb_votes", bins = 5)
+pd.value_counts(xvotes);
+
+## Most of the rating are in the range from 3.76 to 7.52.
+## 99 movies for higher rating - 7.5 to 9.4
+## 13 movies for lowest rating - -0.0094, 1.88
+
+xratings = pd.cut(meta_ratings["imdb_rating"], 5)
+meta_ratings.hist("imdb_rating", bins = 5,color ='c')
+pd.value_counts(xratings);
+
+# there is relation between votes and ratings
+# as per line votes increases voting also increase
+plt.figure()
+sns.regplot(meta_ratings.imdb_votes,meta_ratings.imdb_rating);
+
+sns.jointplot("imdb_votes","imdb_rating", data = meta_ratings);
+
+### Now answering some question
+
+### Across the year which top-5 movie that got the highest rating ?
+
+# Family of Thakurganj got highest rating
+
+meta_ratings.sort_values(by = 'imdb_rating',ascending=False)
+
+top5rating = meta_ratings.sort_values(by="imdb_rating", ascending = False)[:10]
+snstop5ratngPlot = sns.catplot(y= "title", x="imdb_rating", data = top5rating, kind = "bar")
+snstop5ratngPlot.set_xticklabels(rotation = 90, fontsize = "small");
+
+### Across the year which top-10 movie that got the highest votes and so were more popular ?
+
+meta_ratings.sort_values(by = 'imdb_votes',ascending = False)
+
+top5voting = meta_ratings.sort_values(by="imdb_votes", ascending = False)[:10]
+snstop5votingPlot = sns.catplot(y= "title", x="imdb_votes", data = top5voting, kind = "bar")
+snstop5votingPlot.set_xticklabels(rotation = 90, fontsize = "small");
+
+### Yearwise which top-5 movie that got the highest voting ?
+
+def sortYearWise(df, colNames):
+    return df.sort_values(by=colNames, ascending = False)[:1]
+
+yearWisetop5votes = meta_ratings.groupby("year_of_release").apply(sortYearWise, "imdb_votes")
+yearWisetop5votes
+
+yearWisevotesPlot1 = sns.catplot(y="title", x = "imdb_votes", kind ="bar", hue="year_of_release", 
+                                 data = yearWisetop5votes, dodge=False)
+yearWisevotesPlot1.set_xticklabels(rotation = 90, fontsize = "small");
